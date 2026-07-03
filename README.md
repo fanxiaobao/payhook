@@ -286,6 +286,16 @@ node bin/payhook.js run stripe duplicate-payment-succeeded \
 4. Stripe-only 的第一版是否有价值？
 5. 下一个应该支持什么场景？
 
+## Demo 录屏材料
+
+如果不方便英文口播，可以直接录无声终端视频，然后使用项目里的英文字幕或卡片文案：
+
+- `demo-script.md`：中文录屏脚本
+- `demo-captions-en.srt`：英文字幕
+- `demo-cards-en.md`：英文标题卡/转场卡文案
+
+第一版验证视频不需要精致。能让开发者看懂“失败一次、修复后通过”即可。
+
 ## 路线图
 
 短期：

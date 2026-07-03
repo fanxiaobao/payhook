@@ -1,0 +1,39 @@
+1
+00:00:00,000 --> 00:00:04,000
+PayHook tests payment webhook idempotency locally.
+
+2
+00:00:04,000 --> 00:00:09,000
+Payment providers can send duplicate or retried webhook events.
+
+3
+00:00:09,000 --> 00:00:14,000
+Returning 200 OK does not always mean your internal state is correct.
+
+4
+00:00:14,000 --> 00:00:20,000
+This demo handler has a common bug: it processes the same checkout event twice.
+
+5
+00:00:20,000 --> 00:00:27,000
+PayHook sends a duplicate Stripe-style checkout.session.completed event.
+
+6
+00:00:27,000 --> 00:00:35,000
+The webhook returns 200 OK, but PayHook catches duplicate payment, fulfillment, and ledger state.
+
+7
+00:00:35,000 --> 00:00:41,000
+Now the demo handler switches to event-id deduplication.
+
+8
+00:00:41,000 --> 00:00:50,000
+PayHook runs the same duplicate webhook scenario again.
+
+9
+00:00:50,000 --> 00:00:56,000
+The fixed handler now ends in the correct state.
+
+10
+00:00:56,000 --> 00:01:00,000
+How do you test payment webhook idempotency today?
