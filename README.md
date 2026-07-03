@@ -1,7 +1,5 @@
 # PayHook
 
-[中文文档](README.zh-CN.md)
-
 PayHook is a local-first CLI for testing payment webhook reliability.
 
 It is not trying to replace Stripe CLI, Postman, or webhook.site. It focuses on a narrower question:
@@ -294,7 +292,7 @@ If you have integrated payment webhooks, I would especially like to learn:
 
 If you do not want to record English voiceover, you can record a silent terminal demo and use the included English captions or title cards:
 
-- `demo-script.md`: Chinese recording script
+- `demo-script.md`: recording script
 - `demo-captions-en.srt`: English captions
 - `demo-cards-en.md`: English title/transition card copy
 

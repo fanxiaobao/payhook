@@ -1,23 +1,25 @@
-# PayHook 60 秒录屏脚本
+# PayHook 60-Second Demo Script
 
-这份脚本用于录一个非常短的终端 demo。目标不是做精美宣传片，而是让开发者在 1 分钟内看懂：
+This script is for recording a short silent terminal demo.
 
-1. 支付 Webhook 重复到达会造成什么问题。
-2. PayHook 如何抓到这个问题。
-3. 幂等修复后，同一个场景如何通过。
+The goal is to show three things in under one minute:
 
-## 录屏前准备
+1. Duplicate payment webhooks can corrupt internal state.
+2. PayHook catches the bug.
+3. The same scenario passes after event-id deduplication.
 
-建议终端字体调大，画面只保留两个终端窗口。
+## Before Recording
 
-不要展示：
+Use a large terminal font and keep the screen simple.
 
-- GitHub token
-- SSH key
-- 真实支付平台密钥
-- 个人隐私信息
+Do not show:
 
-## 终端 1：启动 demo 服务
+- GitHub tokens
+- SSH keys
+- real payment provider secrets
+- personal information
+
+## Terminal 1: Start the demo service
 
 ```bash
 cd payhook
@@ -26,7 +28,7 @@ javac -d /tmp/payhook-demo-classes examples/java-http-stripe-demo/PayhookDemo.ja
 java -cp /tmp/payhook-demo-classes PayhookDemo
 ```
 
-你应该看到：
+Expected output:
 
 ```text
 PayHook Java demo listening on http://localhost:8080
@@ -34,35 +36,36 @@ Webhook endpoint: http://localhost:8080/webhooks/stripe
 Mode: flawed. POST /test/mode/dedupe to enable event-id dedupe.
 ```
 
-## 终端 2：准备运行 PayHook
+## Terminal 2: Prepare PayHook
 
 ```bash
 cd payhook
 ```
 
-## 0-10 秒：说明问题
+## 0-10s: Problem
 
-可以说：
-
-```text
-支付 Webhook 可能重复投递或重试。接口返回 200 OK 并不代表业务状态一定正确，因为你的系统可能重复履约、重复发放权益，或者重复写账务记录。
-```
-
-运行：
+Show:
 
 ```bash
 node bin/payhook.js list
 ```
 
-## 10-30 秒：演示失败
-
-可以说：
+Optional caption:
 
 ```text
-这个 demo 服务故意有一个常见 bug：每次收到 checkout.session.completed 都直接处理，不按 Stripe event id 去重。
+Payment webhooks can be duplicated or retried.
+Returning 200 OK does not always mean internal state is correct.
 ```
 
-运行：
+## 10-30s: Failing Handler
+
+Optional caption:
+
+```text
+This demo handler has a common bug: it processes checkout.session.completed every time it arrives.
+```
+
+Run:
 
 ```bash
 node bin/payhook.js run stripe duplicate-payment-succeeded \
@@ -70,7 +73,7 @@ node bin/payhook.js run stripe duplicate-payment-succeeded \
   --assert examples/java-http-stripe-demo/payhook.assert.yaml
 ```
 
-重点停留在这几行：
+Pause on:
 
 ```text
 Events:
@@ -85,35 +88,35 @@ Checks:
        expected paymentEntries=1, got paymentEntries=2
 ```
 
-可以说：
+Optional caption:
 
 ```text
-注意，Webhook 每次都返回了 200，但 PayHook 发现内部状态已经错了：支付计数、履约次数、账务记录都重复了。
+Every webhook returned 200 OK, but PayHook caught duplicate fulfillment and duplicate ledger state.
 ```
 
-## 30-45 秒：切到修复模式
+## 30-45s: Switch To Fixed Mode
 
-可以说：
-
-```text
-现在切到修复后的模式：按 Stripe event id 做幂等去重。
-```
-
-运行：
+Run:
 
 ```bash
 curl -X POST http://localhost:8080/test/mode/dedupe
 ```
 
-输出：
+Expected output:
 
 ```text
 {"mode":"dedupe","reset":true}
 ```
 
-## 45-60 秒：同一场景通过
+Optional caption:
 
-再次运行同一条 PayHook 命令：
+```text
+Now the handler dedupes by Stripe event id.
+```
+
+## 45-60s: Same Scenario Passes
+
+Run the same PayHook command again:
 
 ```bash
 node bin/payhook.js run stripe duplicate-payment-succeeded \
@@ -121,7 +124,7 @@ node bin/payhook.js run stripe duplicate-payment-succeeded \
   --assert examples/java-http-stripe-demo/payhook.assert.yaml
 ```
 
-重点停留在：
+Pause on:
 
 ```text
 Checks:
@@ -131,31 +134,21 @@ Checks:
 Result: passed
 ```
 
-可以说：
+Optional caption:
 
 ```text
-同样的重复 Webhook 场景，修复后业务状态保持正确。这就是 PayHook 的核心价值：在上线前，用可重复的本地测试抓支付 Webhook 幂等问题。
+Same duplicate webhook scenario. Now the app ends in the correct state.
 ```
 
-## 结尾问题
+## Ending Question
 
-最后不要像销售广告，直接抛问题：
+End with:
 
 ```text
-你们现在是怎么测试支付 Webhook 幂等的？重复或重试 Webhook 有没有造成过真实 bug？
+How do you test payment webhook idempotency today?
 ```
 
-## 可选英文结尾
-
-如果要发英文社区，可以结尾说：
-
-```text
-How do you test payment webhook idempotency today? Have duplicate or retried webhooks ever caused real bugs in your app?
-```
-
-## 录完以后
-
-建议配文不要太长：
+## Short Post Caption
 
 ```text
 I built a tiny local CLI to test payment webhook idempotency.
