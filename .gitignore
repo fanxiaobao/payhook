@@ -1,0 +1,5 @@
+node_modules/
+.payhook/
+*.class
+.DS_Store
+npm-debug.log*

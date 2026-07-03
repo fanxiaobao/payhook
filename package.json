@@ -1,0 +1,16 @@
+{
+  "name": "payhook",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "payhook": "./bin/payhook.js"
+  },
+  "scripts": {
+    "payhook": "node ./bin/payhook.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

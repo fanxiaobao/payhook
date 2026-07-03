@@ -1,0 +1,19 @@
+version: 1
+checks:
+  - name: order is paid once
+    method: GET
+    url: http://localhost:8080/test/orders/order_123
+    expect:
+      status: 200
+      json:
+        status: PAID
+        paidCount: 1
+        fulfillmentCount: 1
+
+  - name: ledger has one payment entry
+    method: GET
+    url: http://localhost:8080/test/ledger/order_123
+    expect:
+      status: 200
+      json:
+        paymentEntries: 1
