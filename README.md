@@ -1,105 +1,109 @@
 # PayHook
 
-PayHook 是一个本地优先的支付 Webhook 可靠性测试 CLI。
+[中文文档](README.zh-CN.md)
 
-它的目标不是替代 Stripe CLI、Postman 或 webhook.site，而是回答一个更具体的问题：
+PayHook is a local-first CLI for testing payment webhook reliability.
 
-> 当支付平台重复、重试、延迟或乱序发送 Webhook 时，你自己的订单、履约、权益、账务状态还能保持正确吗？
+It is not trying to replace Stripe CLI, Postman, or webhook.site. It focuses on a narrower question:
 
-当前版本是一个需求验证原型，重点验证“支付 Webhook 幂等和状态机可靠性”这个痛点是否真实存在。
+> If payment providers send duplicate, retried, delayed, or out-of-order webhook events, does your own order, fulfillment, entitlement, or ledger state still end up correct?
 
-## 为什么要做这个
+This repository is currently a demand-validation prototype. The goal is to validate whether payment webhook idempotency and state-machine correctness are painful enough for developers to try a dedicated tool.
 
-支付 Webhook 集成里，一个很常见的误区是：
+## Why This Exists
 
-> 接口返回了 `200 OK`，就说明 Webhook 处理没问题。
+A common mistake in payment webhook integrations is assuming:
 
-但真实风险往往发生在内部状态变更上。例如：
+> The endpoint returned `200 OK`, so the webhook was handled correctly.
 
-1. `checkout.session.completed` 到达一次。
-2. 你的系统把订单标记为已支付。
-3. 你的系统发放权益或触发履约。
-4. 你的系统写入一条支付/账务记录。
-5. 同一个 Webhook 因为平台重试或重复投递再次到达。
-6. 接口仍然返回 `200 OK`。
-7. 但内部又发放了一次权益，或者又写了一条账务记录。
+But the real failure often happens inside your application state.
 
-这类问题在本地手工测试时很容易漏掉，因为开发者通常只测试“正常来一次事件”的路径。
+Example:
 
-PayHook 想做的是：把这些“不那么正常但真实存在”的支付事件投递方式变成可重复执行的本地测试。
+1. `checkout.session.completed` arrives once.
+2. Your app marks the order as paid.
+3. Your app grants entitlement or triggers fulfillment.
+4. Your app creates a payment or ledger entry.
+5. The same webhook event is retried or delivered again.
+6. Your endpoint still returns `200 OK`.
+7. Internally, the app grants entitlement again or creates another ledger entry.
 
-## 当前 MVP 能做什么
+This class of bug is easy to miss during manual local testing because most developers only test the happy path where each event arrives once and in the expected order.
 
-当前只实现了一个最小闭环：
+PayHook turns messy-but-real payment delivery behavior into repeatable local tests.
 
-- 模拟 Stripe 风格的 `checkout.session.completed` 事件。
-- 故意发送两次相同事件，模拟重复投递。
-- 再发送一次 `payment_intent.succeeded`。
-- 调用你提供的本地断言接口，检查订单和账务状态是否正确。
-- 如果发现重复支付计数、重复履约、重复账务记录，就在命令行输出失败原因。
+## Current MVP
 
-当前已实现：
+The current MVP implements one complete scenario:
 
-- `stripe/duplicate-payment-succeeded` 场景
-- Stripe 风格的签名请求
-- YAML 格式的断言配置
-- 一个 Java demo 服务
-- demo 服务支持两种模式：
-  - `flawed`：故意不做幂等，PayHook 应该检测失败
-  - `dedupe`：按 Stripe event id 去重，PayHook 应该检测通过
+- send a Stripe-style `checkout.session.completed` event
+- send the same event again to simulate duplicate delivery
+- send `payment_intent.succeeded`
+- call local assertion endpoints
+- report whether order, fulfillment, and ledger state are still correct
 
-计划中的后续场景：
+Implemented:
 
-- 支付生命周期乱序到达
-- Webhook handler 处理太慢导致平台重试
-- 支付成功后退款
-- 支付成功后 dispute / chargeback
-- GitHub Action / CI 模式
+- `stripe/duplicate-payment-succeeded`
+- Stripe-style signed webhook requests
+- YAML assertion file
+- Java demo service
+- two demo modes:
+  - `flawed`: intentionally non-idempotent, expected to fail
+  - `dedupe`: dedupes by Stripe event id, expected to pass
 
-## 适合谁
+Planned:
 
-PayHook 当前主要面向：
+- out-of-order payment lifecycle
+- slow handler retry
+- refund after payment
+- dispute / chargeback after payment
+- GitHub Action / CI mode
 
-- 正在接 Stripe Webhook 的 SaaS 开发者
-- 做订阅、付费墙、会员权益、订单履约的后端工程师
-- 做支付、账务、结算、退款、拒付流程的工程师
-- 想在上线前验证支付状态机幂等性的团队
+## Who This Is For
 
-它暂时不适合：
+PayHook is currently aimed at:
 
-- 想要完整支付网关的人
-- 想要可视化低代码测试平台的人
-- 想要生产 Webhook 代理服务的人
-- 不愿意暴露本地 debug/assertion endpoint 的用户
+- SaaS developers integrating Stripe webhooks
+- backend engineers building subscription, paywall, entitlement, or fulfillment flows
+- teams handling payment, refund, dispute, settlement, or ledger state
+- developers who want to test payment state-machine idempotency before production
 
-## 运行要求
+It is not currently for:
+
+- people looking for a full payment gateway
+- teams looking for a low-code visual testing platform
+- production webhook proxy use cases
+- users who cannot expose local debug/assertion endpoints
+
+## Requirements
 
 - Node.js 20+
-- Java 17+，仅用于运行 demo 服务
+- Java 17+ for the demo service
 
-当前 MVP 没有 npm 依赖，也没有 Maven 依赖。
+The current MVP has no npm dependencies and no Maven dependencies.
 
-## 快速开始
+## Quick Start
 
-进入项目目录：
+Enter the project directory:
 
 ```bash
 cd payhook
 ```
 
-运行测试：
+Run tests:
 
 ```bash
 npm test
 ```
 
-列出当前支持的测试场景：
+List available scenarios:
 
 ```bash
 node bin/payhook.js list
 ```
 
-输出示例：
+Example output:
 
 ```text
 stripe/duplicate-payment-succeeded  ready
@@ -108,11 +112,11 @@ stripe/out-of-order-payment-lifecycle  planned
   Replays a valid payment lifecycle in unexpected order.
 ```
 
-## 运行 Demo
+## Run The Demo
 
-### 1. 启动 Java demo 服务
+### 1. Start the Java demo service
 
-在第一个终端里运行：
+In the first terminal:
 
 ```bash
 cd payhook
@@ -121,7 +125,7 @@ javac -d /tmp/payhook-demo-classes examples/java-http-stripe-demo/PayhookDemo.ja
 java -cp /tmp/payhook-demo-classes PayhookDemo
 ```
 
-启动后你会看到：
+You should see:
 
 ```text
 PayHook Java demo listening on http://localhost:8080
@@ -129,11 +133,11 @@ Webhook endpoint: http://localhost:8080/webhooks/stripe
 Mode: flawed. POST /test/mode/dedupe to enable event-id dedupe.
 ```
 
-默认是 `flawed` 模式，也就是故意没有做 Webhook 幂等。
+The demo starts in `flawed` mode. In this mode, the webhook handler intentionally does not dedupe by event id.
 
-### 2. 运行 PayHook 场景
+### 2. Run the PayHook scenario
 
-在第二个终端里运行：
+In a second terminal:
 
 ```bash
 cd payhook
@@ -142,7 +146,7 @@ node bin/payhook.js run stripe duplicate-payment-succeeded \
   --assert examples/java-http-stripe-demo/payhook.assert.yaml
 ```
 
-你应该看到类似结果：
+Expected output:
 
 ```text
 Scenario: stripe/duplicate-payment-succeeded
@@ -163,17 +167,17 @@ Checks:
 Result: failed
 ```
 
-注意：Webhook endpoint 都返回了 `200`，但内部状态已经错了。这就是 PayHook 想捕捉的问题。
+Notice the key point: every webhook request returned `200`, but the internal state is still wrong.
 
-### 3. 切换到修复后的幂等模式
+### 3. Switch to the fixed idempotent mode
 
-运行：
+Run:
 
 ```bash
 curl -X POST http://localhost:8080/test/mode/dedupe
 ```
 
-再次执行同一条 PayHook 命令：
+Run the same PayHook command again:
 
 ```bash
 node bin/payhook.js run stripe duplicate-payment-succeeded \
@@ -181,7 +185,7 @@ node bin/payhook.js run stripe duplicate-payment-succeeded \
   --assert examples/java-http-stripe-demo/payhook.assert.yaml
 ```
 
-这次应该通过：
+Expected output:
 
 ```text
 Checks:
@@ -191,15 +195,15 @@ Checks:
 Result: passed
 ```
 
-这说明 demo 服务按 Stripe event id 做了去重以后，同样的重复事件不会再导致重复履约或重复账务记录。
+The same duplicate webhook scenario now passes because the demo handler dedupes by Stripe event id.
 
-## 断言文件是什么
+## Assertion Files
 
-PayHook 当前不会直接连接你的数据库，也不会绑定某一种语言或框架。
+PayHook does not connect directly to your database and does not assume a specific language or framework.
 
-它采用一个更简单的方式：在事件发送完成后，调用你提供的本地 HTTP 检查接口。
+For the MVP, it uses a simple assertion approach: after sending events, PayHook calls local HTTP endpoints that you provide.
 
-示例文件：
+Example:
 
 ```yaml
 version: 1
@@ -223,30 +227,30 @@ checks:
         paymentEntries: 1
 ```
 
-这个设计的好处是：
+Why this shape:
 
-- 不绑定 Java、Node、Python、Rails 或 Go。
-- 不需要把数据库账号给 PayHook。
-- 可以先作为本地测试工具跑起来。
-- 后续可以自然扩展到 CI。
+- it is language-agnostic
+- it avoids database credentials
+- it is easy to run locally
+- it can later evolve into CI checks
 
-代价是：用户需要在本地或测试环境暴露一些 debug/assertion endpoint。
+Tradeoff: you need to expose local or test-only debug/assertion endpoints.
 
-## 当前 CLI
+## CLI
 
-查看帮助：
+Show help:
 
 ```bash
 node bin/payhook.js --help
 ```
 
-列出场景：
+List scenarios:
 
 ```bash
 node bin/payhook.js list
 ```
 
-运行场景：
+Run a scenario:
 
 ```bash
 node bin/payhook.js run stripe duplicate-payment-succeeded \
@@ -254,67 +258,67 @@ node bin/payhook.js run stripe duplicate-payment-succeeded \
   --assert examples/java-http-stripe-demo/payhook.assert.yaml
 ```
 
-可选参数：
+Options:
 
 ```text
---target <url>      接收 Stripe 风格事件的 Webhook endpoint
---assert <file>     断言 YAML 文件
---secret <secret>   用于生成 Stripe 风格签名的 webhook secret
---timeoutMs <ms>    单个事件请求超时时间，默认 10000
+--target <url>      Webhook endpoint receiving Stripe-style events
+--assert <file>     Assertion YAML file
+--secret <secret>   Secret used to generate Stripe-style webhook signatures
+--timeoutMs <ms>    Per-event request timeout, default 10000
 ```
 
-## 这个项目现在处于什么阶段
+## Project Stage
 
-这是一个需求验证原型，不是生产级产品。
+This is a demand-validation prototype, not a production-ready product.
 
-当前最重要的问题不是“功能够不够多”，而是：
+The important questions right now are:
 
-- 开发者是否真的遇到过重复 Webhook / 重试 Webhook 导致的线上 bug？
-- 团队现在如何测试 Webhook 幂等？
-- 本地 CLI 这种形态是否足够自然？
-- 下一个最有价值的场景是退款、拒付、乱序，还是 CI 集成？
+- Have developers actually seen duplicate or retried webhooks cause production bugs?
+- How do teams currently test webhook idempotency?
+- Is a local CLI a natural first form factor?
+- Should the next scenario be refunds, disputes, out-of-order delivery, or CI integration?
 
-如果这些问题没有得到正向反馈，就不应该继续堆功能。
+If the answer is negative, the right move is to stop or pivot instead of adding more features.
 
-## 反馈问题
+## Feedback Wanted
 
-如果你做过支付 Webhook 集成，最想听到你的反馈：
+If you have integrated payment webhooks, I would especially like to learn:
 
-1. 你是否遇到过重复 Webhook、重试 Webhook 或乱序事件导致的问题？
-2. 你现在怎么测试 Webhook 幂等？
-3. 你更想要本地 CLI、GitHub Action，还是 hosted dashboard？
-4. Stripe-only 的第一版是否有价值？
-5. 下一个应该支持什么场景？
+1. Have duplicate, retried, delayed, or out-of-order webhooks caused real bugs for you?
+2. How do you test webhook idempotency today?
+3. Would you prefer this as a local CLI, GitHub Action, or hosted dashboard?
+4. Is a Stripe-only first version useful enough?
+5. Which scenario should be next?
 
-## Demo 录屏材料
+## Silent Demo Materials
 
-如果不方便英文口播，可以直接录无声终端视频，然后使用项目里的英文字幕或卡片文案：
+If you do not want to record English voiceover, you can record a silent terminal demo and use the included English captions or title cards:
 
-- `demo-script.md`：中文录屏脚本
-- `demo-captions-en.srt`：英文字幕
-- `demo-cards-en.md`：英文标题卡/转场卡文案
+- `demo-script.md`: Chinese recording script
+- `demo-captions-en.srt`: English captions
+- `demo-cards-en.md`: English title/transition card copy
 
-第一版验证视频不需要精致。能让开发者看懂“失败一次、修复后通过”即可。
+The first validation video does not need to be polished. It only needs to show: fail once, fix idempotency, pass the same scenario.
 
-## 路线图
+## Roadmap
 
-短期：
+Short term:
 
-- 支持更多 Stripe 场景
-- 增强断言能力，例如 JSON path、数组长度、数值比较
-- 增加更真实的 Spring Boot demo
-- 输出机器可读的 JSON report
+- more Stripe scenarios
+- stronger assertions, such as JSON path, array length, and numeric comparisons
+- a more realistic Spring Boot demo
+- machine-readable JSON reports
 
-中期：
+Mid term:
 
-- GitHub Action / CI 集成
-- PayPal / Paddle / Lemon Squeezy / Adyen provider preset
-- 场景组合，例如支付成功后退款、支付成功后 dispute
-- 本地 Web UI 展示事件时间线和断言结果
+- GitHub Action / CI integration
+- provider presets for PayPal, Paddle, Lemon Squeezy, and Adyen
+- scenario chains such as payment succeeded then refunded, or payment succeeded then disputed
+- local web UI for event timeline and assertion results
 
-长期：
+Long term:
 
-- 团队协作和测试历史
-- 支付状态机可视化
-- Webhook contract testing
-- 支付集成可靠性测试套件
+- team collaboration and run history
+- payment state-machine visualization
+- webhook contract testing
+- broader payment integration reliability suite
